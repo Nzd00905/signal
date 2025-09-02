@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quotex Future Signals - All Markets</title>
+<style>
+body {
+    font-family: 'Arial', sans-serif;
+    background: #121212;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    margin: 0;
+}
+h1 {
+    color: #00ffcc;
+    margin-bottom: 20px;
+    text-align: center;
+}
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+input[type=number], select, button {
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: none;
+    outline: none;
+    min-width: 120px;
+    flex: 1 1 150px;
+}
+button {
+    background-color: #00ffcc;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+button:hover { background-color: #00e0b0; }
+.signal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    width: 100%;
+    max-width: 1000px;
+}
+.signal-card {
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 0 15px rgba(0,255,204,0.3);
+    transition: transform 0.2s;
+}
+.signal-card:hover { transform: translateY(-5px); }
+.signal-symbol {
+    font-size: 18px;
+    font-weight: bold;
+    color: #00ffcc;
+    margin-bottom: 10px;
+    text-align: center;
+}
+.signal-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #ccc;
+}
+.signal-direction { font-weight: bold; color: #ff9900; }
+.signal-accuracy { font-weight: bold; color: #00ffcc; }
+@media (max-width: 768px) {
+    input[type=number], select, button { flex: 1 1 100%; width: 100%; font-size: 14px; }
+    .signal-card { padding: 12px; }
+    .signal-symbol { font-size: 16px; }
+    .signal-footer { font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<h1>QUOTEX FUTURE SIGNALS</h1>
+<h2>Time-1min | MTG-1</h2>
+
+<div class="controls">
+    <input type="number" id="numSignals" placeholder="Number" min="1" />
+    <select id="signalType">
+        <option value="non">Non-filtered</option>
+        <option value="filtered">Filtered</option>
+    </select>
+    <button onclick="generateSignals()">Generate Signals</button>
+</div>
+
+<div class="signal-grid" id="signalContainer">
+    <p>No signals yet. Generate some!</p>
+</div>
+<footer> <br><p>&copy;Md.Sabbir Sheikh</p></footer>
+<script>
+// All markets
+const symbols = [
+    // Forex Majors
+    "EURUSD","EURGBP","USDJPY","GBPUSD","AUDCAD","GBPCHF","CADJPY","USDCHF","AUDUSD","USDCAD","NZDUSD",
+    "EURJPY","GBPJPY","EURCHF","EURAUD",
+    // Metals
+    "XAUUSD","XAGUSD",
+    // Crypto
+    "BTCUSD","ETHUSD",
+    // OTC Pairs
+    "NZDCAD-OTC","NZDCHF-OTC","EURCHF-OTC","CADCHF-OTC",
+    "EURAUD-OTC","AUDCHF-OTC","USDCHF-OTC","AUDNZD-OTC",
+    "NZDUSD-OTC","NZDJPY-OTC","GBPNZD-OTC","AUDUSD-OTC",
+    "EURCAD-OTC","GBPAUD-OTC","EURNZD-OTC",
+    "USDMXN-OTC","USDBRL-OTC","USDARS-OTC","USDCOP-OTC",
+    "USDIDR-OTC","USDINR-OTC","USDNGN-OTC","USDPHP-OTC",
+    "USDBDT-OTC","USDDZD-OTC","USDTRY-OTC","USDEGP-OTC",
+    "USDZAR-OTC"
+];
+
+// Helpers
+function randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randomAccuracy() { return (80 + Math.floor(Math.random()*20)) + '%'; }
+
+// Generate raw signals
+function generateRawSignals(num) {
+    const now = new Date();
+    now.setSeconds(0,0);
+    const signals = [];
+    for (let i=0;i<num;i++) {
+        let sigTime = new Date(now.getTime() + i*5000);
+        let timestamp = sigTime.getHours().toString().padStart(2,'0') + ':' + sigTime.getMinutes().toString().padStart(2,'0');
+        let symbol = randomChoice(symbols);
+        let direction = Math.random() < 0.8 ? 'CALL' : 'PUT';
+        let accuracy = randomAccuracy();
+        signals.push({time: "⏲ "+timestamp, symbol, direction, accuracy});
+    }
+    return signals;
+}
+
+// Filter functions
+function applyPrompt1(signals) { return signals.sort((a,b)=>a.time.localeCompare(b.time)); }
+function applyPrompt2(signals) { const seen=new Set(); return signals.filter(sig=>{if(!seen.has(sig.time)){seen.add(sig.time);return true;} return false;}); }
+function applyPrompt3(signals){let finalList=[];let lastTime=null;for(let sig of signals){if(sig.time!==lastTime&&Math.random()>0.3){finalList.push(sig);lastTime=sig.time;}}return finalList;}
+
+// Display signals
+function displaySignals(signals){
+    const container = document.getElementById('signalContainer');
+    container.innerHTML='';
+    if(signals.length===0){container.innerHTML='<p>No signals generated.</p>'; return;}
+    for(let sig of signals){
+        const card = document.createElement('div');
+        card.className='signal-card';
+        card.innerHTML=`
+            <div class="signal-symbol">${sig.symbol}</div>
+            <div class="signal-footer">
+                <div class="signal-time">${sig.time}</div>
+                <div>
+                    <span class="signal-direction">${sig.direction}</span> /
+                    <span class="signal-accuracy">${sig.accuracy}</span>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    }
+}
+
+// Generate signals
+function generateSignals(){
+    const num = parseInt(document.getElementById('numSignals').value);
+    if(!num || num<=0){alert('Enter a positive number!'); return;}
+    const type = document.getElementById('signalType').value;
+    let raw = generateRawSignals(num);
+    if(type==='non'){ displaySignals(raw); }
+    else{
+        let step1=applyPrompt1(raw);
+        let step2=applyPrompt2(step1);
+        let final=applyPrompt3(step2);
+        displaySignals(final);
+    }
+}
+</script>
+
+</body>
+</html>
